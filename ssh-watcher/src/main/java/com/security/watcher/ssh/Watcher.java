@@ -3,7 +3,7 @@ package com.security.watcher.ssh;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.regex.Pattern;
+import java.util.Map;
 
 public class Watcher {
 
@@ -29,7 +29,13 @@ public class Watcher {
                 Files.lines(filePath)
                         .filter(line -> !line.trim().isEmpty()
                                 && line.contains("Accepted") || line.contains("Failed"))
-                        .forEach(line -> System.out.println(Extractor.extract(line).toString()));
+                        .forEach(line -> {
+                            Map<String, Object> loginInfo = Extractor.extract(line);
+                            if (loginInfo != null && loginInfo.containsKey("sourceIP")) {
+                                loginInfo.put("geoLocation", Extractor.geoLocate(loginInfo.get("sourceIP").toString()));
+                                System.out.println(loginInfo.toString());
+                            }
+                        });
             } else {
                 throw new IOException("File at path \"" + filePath.toString() + "\" doesn't exist");
             }
