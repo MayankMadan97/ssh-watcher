@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -100,8 +101,28 @@ public class Watcher {
                                                     + "' AND timestamp > datetime('now', '-5 minutes') " +
                                                     "GROUP BY sourceIP HAVING failed_count >= 5");
                                     if (failedAttempts != null && failedAttempts.getString("sourceIP") != null) {
-                                        this.logger.debug(failedAttempts.getString("sourceIP") + " >> "
-                                                + failedAttempts.getString("failed_count"));
+                                        String suspiciousIP = failedAttempts.getString("sourceIP");
+                                        String fail_count = failedAttempts.getString("failed_count");
+                                        this.logger.debug(suspiciousIP + " >> " + fail_count);
+                                        ResultSet suspiciousIpsResultSet = stmt
+                                                .executeQuery(
+                                                        "SELECT source_ip, failed_count FROM suspicious_ips WHERE source_ip = '"
+                                                                + suspiciousIP + "'");
+                                        if (suspiciousIpsResultSet != null
+                                                && suspiciousIpsResultSet.getString("source_ip") != null) {
+                                            // IP already detected as a suspicious Activity
+                                            stmt.executeUpdate(
+                                                    "UPDATE suspicious_ips SET last_checked = "
+                                                            + new Date().getTime() + ", failed_count=" + fail_count
+                                                            + " WHERE source_ip = '" + suspiciousIP + "'");
+                                        } else {
+                                            long currentTimeStamp = new Date().getTime();
+                                            stmt.executeUpdate(
+                                                    "INSERT INTO suspicious_ips(source_ip,failed_count,first_detected,last_checked,is_banned) VALUES('"
+                                                            + suspiciousIP + "'," + fail_count + ","
+                                                            + currentTimeStamp + "," + currentTimeStamp + "," + 0
+                                                            + ")");
+                                        }
                                     }
                                 } catch (SQLException e) {
                                     this.logger.warn("Failed to execute anomoly detection query :: "
