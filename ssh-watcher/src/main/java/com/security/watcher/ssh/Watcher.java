@@ -8,17 +8,24 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Watcher {
 
     Path filePath;
     ProcessBuilder process;
+    Logger logger;
 
     public Watcher(Path filePath) {
         this.filePath = filePath;
+        this.logger = LoggerFactory.getLogger(Watcher.class);
     }
 
     public Watcher(String command) {
@@ -56,9 +63,9 @@ public class Watcher {
         }
     }
 
-    public static void insertIntoDB(Map<String, Object> data) {
+    public void insertIntoDB(Map<String, Object> data) {
+        this.logger.trace("Entering the method with data " + data.toString());
         String sql = "INSERT INTO logins(sourceIP,timestamp,result,user,port, geoLocation, method) VALUES(?, ?, ?,?, ?, ?,?)";
-
         try (Connection conn = SQLiteConnectionManager.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -70,44 +77,43 @@ public class Watcher {
             pstmt.setString(6, data.get("geoLocation").toString());
             pstmt.setString(7, data.get("method").toString());
 
-            System.out.println(pstmt.executeUpdate());
+            pstmt.executeUpdate();
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            this.logger.warn("Failed to establish connection :: " + Arrays.toString(e.getStackTrace()));
         }
+        this.logger.trace("Leaving the method");
     }
 
-    public static void checkForAnomoly(Set<String> sourceIP) {
-        if (sourceIP != null) {
+    public void checkForAnomoly(Set<String> sourceIP) {
+        this.logger.trace("Entering the method with failed IPs: " + Arrays.toString(sourceIP.toArray()));
+        if (sourceIP != null && sourceIP.size() > 0) {
             try (Connection conn = SQLiteConnectionManager.getConnection()) {
-                if (conn != null) {
-                    try (Statement stmt = conn.createStatement()) {
-                        if (sourceIP != null && sourceIP.size() > 0) {
-                            sourceIP.stream().forEach(ip -> {
-                                ResultSet failedAttempts;
+                try (Statement stmt = conn.createStatement()) {
+                    sourceIP.stream()
+                            .filter(Objects::nonNull)
+                            .forEach(ip -> {
                                 try {
-                                    failedAttempts = stmt
+                                    ResultSet failedAttempts = stmt
                                             .executeQuery("SELECT sourceIP, COUNT(*) AS failed_count FROM logins" +
                                                     " WHERE result = 'Failed' AND sourceIP = '" + ip
                                                     + "' AND timestamp > datetime('now', '-5 minutes') " +
                                                     "GROUP BY sourceIP HAVING failed_count >= 5");
-                                    if (failedAttempts != null) {
-                                        System.out.println(failedAttempts.getString("sourceIP") + " >> "
+                                    if (failedAttempts != null && failedAttempts.getString("sourceIP") != null) {
+                                        this.logger.debug(failedAttempts.getString("sourceIP") + " >> "
                                                 + failedAttempts.getString("failed_count"));
                                     }
                                 } catch (SQLException e) {
-                                    // TODO Auto-generated catch block
-                                    e.printStackTrace();
+                                    this.logger.warn("Failed to execute anomoly detection query :: "
+                                            + Arrays.toString(e.getStackTrace()));
                                 }
                             });
-                        }
-                    }
                 }
             } catch (SQLException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                this.logger.warn("Failed to establish connection :: " + Arrays.toString(e.getStackTrace()));
             }
         }
+        this.logger.trace("Leaving the method");
     }
 
 }
