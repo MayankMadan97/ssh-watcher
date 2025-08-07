@@ -9,7 +9,7 @@ public class SQLiteConnectionManager {
 
     public static Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
-            connection = DriverManager.getConnection("jdbc:sqlite:login_data.db");
+            connection = DriverManager.getConnection("jdbc:sqlite:ssh_login_db.db");
         }
         return connection;
     }

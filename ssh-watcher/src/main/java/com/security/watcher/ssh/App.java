@@ -23,6 +23,14 @@ public class App {
                             "geoLocation TEXT," +
                             "sourceIP TEXT," +
                             "timestamp TEXT)");
+                    stmt.executeUpdate("CREATE TABLE  IF NOT EXISTS suspicious_ips (" +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            "source_ip TEXT NOT NULL," +
+                            "failed_count INTEGER NOT NULL," +
+                            "first_detected TEXT DEFAULT (datetime('now'))," +
+                            "last_checked TEXT NOT NULL," +
+                            "is_banned INTEGER DEFAULT 0" +
+                            ");");
                 }
             }
         } catch (SQLException e) {
@@ -30,7 +38,8 @@ public class App {
         }
 
         try {
-            new Watcher(Path.of("/Users/mayankmadan/Tech/Projects/ssh-watcher/ssh-watcher/auth.log")).startWatching();
+            new Watcher(Path.of("/Users", "mayankmadan", "Tech", "Projects", "ssh-watcher", "ssh-watcher", "auth.log"))
+                    .startWatching();
         } catch (IOException e) {
             e.printStackTrace();
         }

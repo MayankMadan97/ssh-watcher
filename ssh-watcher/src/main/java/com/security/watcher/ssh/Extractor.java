@@ -30,7 +30,7 @@ public class Extractor {
                 extractedInfo.put("fingerprint", parts[15].substring(7));
             }
         } else {
-            System.out.println("⚠️ Log line format not recognized.");
+            System.out.println("Log line format not recognized.");
         }
         return extractedInfo;
     }
